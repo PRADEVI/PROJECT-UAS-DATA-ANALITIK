@@ -1,0 +1,114 @@
+# ANALISIS REGRESI FINANCIAL DATA AND RATIO TRIWULAN 3 TAHUN 2022
+
+## 1. Memuat Packages yang Digunakan
+
+setwd("C:/Project UAS Data Analitik")
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(lmtest)
+library(car)
+
+## 2. Akses Data/Memuat Data
+
+library(readxl)
+Financial_Data_Ratio_Q3_2022 <- read_excel("Financial Data & Ratio - Q3 2022.xlsx")
+View(Financial_Data_Ratio_Q3_2022)
+
+## 3. Penyiapan Data/Data Preparation
+
+### Mengubah nama kolom dataset
+
+fdr <- Financial_Data_Ratio_Q3_2022
+View(fdr)
+colnames(fdr) <- c("Sektor", "Kode Sub Industri", "Sub Industri", "Kode", "Nama Emiten", "Syariah", "Tanggal LK", "Tahun Fiskal", "Jenis Laporan Keuangan", "Opini Auditor", "Aset", "Liabilitas", "Ekuitas", "Pendapatan", "EBT", "Profit", "POA", "EPS", "BVE", "PER", "PBV", "DER", "ROA", "ROE", "NPM")
+
+### Membuat Dataset Baru dari Aset sampai dengan NPM
+
+FDR <- fdr%>%select(Aset, Liabilitas, Ekuitas, Pendapatan, EBT, Profit, POA, EPS, BVE, PER, PBV, DER, ROA, ROE, NPM)
+View(FDR)
+
+### Mengubah Data Karakter menjadi Numerik
+
+FDR <- FDR%>%mutate_if(is.character, as.numeric)
+
+### Menampilkan Data
+
+glimpse(FDR)
+
+### Membuat Variabel Price
+
+FDR <- FDR%>%mutate("Harga Saham" = PER*EPS)
+
+### Mengganti nilai NA dengan 0 dalam dataset
+
+FDR[is.na(FDR)] <- 0
+
+## 4. Visualisasi Data dan Pengujian Korelasi
+
+### Visualisasi Data menggunakan Scatterplot
+
+ggplot(FDR, aes(Profit, `Harga Saham`)) + geom_point(color = "green") + geom_smooth(method = "lm")
+ggplot(FDR, aes(EPS, `Harga Saham`)) + geom_point(color = "blue") + geom_smooth(method = "lm")
+ggplot(FDR, aes(BVE, `Harga Saham`)) + geom_point(color = "red") + geom_smooth(method = "lm")
+
+### Visualisasi Data menggunakan Scatterplot untuk 1 Variabel Dependen dan 3 Variabel Independen
+
+ggplot(FDR, aes(y = `Harga Saham`)) + geom_point(aes(x = Profit, color = "Profit")) + geom_point(aes(x = EPS, color = "EPS")) + geom_point(aes(x = BVE, color = "BVE")) + labs(title = "Scatterplot Variabel Independen terhadap Variabel Harga Saham", y = "Harga Saham", x = "Nilai Variabel Independen")
+
+### Pengujian Korelasi
+
+#### a. Uji Korelasi Hubungan antara Variabel Harga Saham dengan Profit
+
+cor.test(FDR$Profit, FDR$`Harga Saham`, method = "pearson")
+
+#### Berdasarkan uji korelasi hubungan antara variabel Profit dan Harga Saham menunjukkan bahwa :
+#### 1. Terdapat hubungan positif yang signifikan antara "Profit" dan "Harga Saham".
+#### 2. Meskipun hubungan tersebut signifikan, nilainya masih tergolong lemah (0.3768753).
+#### 3. Keberadaan hubungan positif menunjukkan bahwa ketika "Profit" meningkat, kemungkinan "Harga Saham" juga cenderung meningkat, dan sebaliknya.
+
+#### b. Uji Korelasi Hubungan antara Variabel Harga Saham dengan EPS
+
+cor.test(FDR$EPS, FDR$`Harga Saham`, method = "pearson")
+
+#### Dapat dilihat bahwa hasil uji korelasi hubungan antara variabel Harga Saham dengan EPS sebesar 0,48 yang artinya memiliki korelasi yang rendah.
+
+#### c. Uji Korelasi Hubungan antara Variabel Harga Saham dengan BVE
+
+cor.test(FDR$BVE, FDR$`Harga Saham`, method = "pearson")
+
+#### Dapat dilihat bahwa hasil uji korelasi hubungan antara variabel Harga Saham dengan EPS sebesar 0,31 yang artinya memiliki korelasi yang rendah.
+
+## 5. Pemodelan menggunakan Regresi Liniear Berganda
+
+regresi <- lm(`Harga Saham` ~ Profit + EPS + BVE, data = FDR)
+summary(regresi)
+
+#### Dari hasil regresi linear berganda yang telah dilakukan, dapat disimpulkan bahwa variabel yang berpengaruh signifikan terhadap Harga Saham (Y) adalah variabel Profit (X1) dan EPS (X2). Hal ini ditunjukkan pada nilai p-value dari variabel EPS dan BVE yang menunjukkan < 0.05. Sedangkan, p-value dari variabel BVE (X3) lebih dari 0.05 yaitu sebesar 0.428 yang artinya tidak berpengaruh signifikan terhadap variabel Harga Saham (Y).
+
+#### Model Regresi :
+  Y = 
+  
+## 6. Melakukan Uji Normalitas Data
+  
+ks.test(regresi$residuals, ecdf(regresi$residuals))
+
+#### Berdasarkan uji normalitas data menunjukkan bahwa data berdistribusi normal karena nilai p-value lebih dari 0.05 yaitu sebesar 1.
+
+## 7. Melakukan Uji Autokorelasi
+
+dwtest(regresi)
+
+#### Uji Dorbin-Watson untuk autokorelasi pada model regresi menunjukkan bahwa data telah memenuhi syarat autokorelasi karena p-value lebih dari 0.05 yaitu sebesar 0.87
+
+## 8. Melakukan Uji Homogenitas
+
+bptest(regresi, studentize = FALSE)
+
+#### Berdasarkan uji homogenitas menunjukkan bahwa p-value sangat kecil yaitu kurang dari 0.05 yang artinya adanya bukti statistik yang cukup untuk menolak hipotesis nol, yang berarti kita memiliki indikasi bahwa ada heteroskedastisitas dalam kesalahan model.
+
+## 9. Melakukan Uji Multikolinearitas
+
+vif(regresi)
+
+#### Secara umum, hasil VIF menunjukkan bahwa tidak ada masalah multicollinearity yang signifikan antara variabel dalam model regresi.Meskipun terdapat beberapa indikasi multicollinearity pada variabel EPS dan BVE, nilainya masih di bawah ambang batas yang umumnya diterima.
